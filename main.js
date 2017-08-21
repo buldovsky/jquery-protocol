@@ -9,39 +9,33 @@
  */
 (function($){
 
-    // добавляем функцию для прописания протоколов
-    // с помощью этой функции мы теперь можем добавялить любое количество протоколов
-    var protocols = {}
-    $.ajaxProtocol = function(pid, settings){
-
-        // если протокол с таким id уже прописан, то повторно его не создаем
-        if(pid in protocols) return protocols[pid]
-        // сохраняем протокол
-	    protocols[pid] = settings
-		// возвращаем для гибкости вдруг кому пригодится
-        return protocols[pid]
-        
-    }
-
-    // пересохраняем нативную функцию
-    $.nativeAjax = $.ajax
+    var nAjax = $.ajax
     
     // переписываем функцию
     $.ajax = function(){
         
-        var nativeAjax = $.nativeAjax.apply(this, arguments)
-        nativeAjax.ajaxProtocolPromice2 = $.Deferred()
+        // выполняем стандартный Ajax с пришедшими аргументами
+        var nativeAjax = nAjax.apply(this, arguments)
+        //
+        nativeAjax.protocolPrimise = $.Deferred()
         
         // поскольку после вызова аякса обычно на него навешиваются всякие обработчики
         // мы возвращаем не аякс а наше обещание, которое сработает после проверки на протокол
-        return $.when( nativeAjax, nativeAjax.ajaxProtocolPromice2 )
+        var when = $.when( nativeAjax, nativeAjax.protocolPrimise )
             .then(function(){
             
             	//console.log('Выполнился эмулятор аякса, возвращаем данные аякса')
-                return nativeAjax.ajaxProtocolPromice2
+                return nativeAjax.protocolPrimise
 
             })
 
+        when.on = function(){
+            
+            $.fn.on.apply($(nativeAjax), arguments)
+            return when
+            
+        }
+		return when       
     }
 
 
@@ -106,79 +100,24 @@
     });    
 
 
-    
-
     // прописываем обработчик глобального события
     // при отправке любого запроса
     $(document).bind("ajaxSend", function(event, jqXHR, ajaxOptions){
 
-        //console.log('ajaxSend', arguments)
-/*
-        // создаем отложеное событие
-        var d = $.Deferred()
-        
-        //console.log(event, jqXHR, ajaxOptions)
-        // сюда будем сохранять оригинальные обработчики
-        // для каждого запроса        
-        var requestList = {}
-        // перебираем все основные события
-        // мы собираемся их переопределить
-        for (var i in list) (function(ii){
-
-			console.log('Запросу подменяем обработчик-свойство '+ii)
-            // сохраняем оригинальные обработчики запроса
-            requestList[ii] = jqXHR[ii]
-            // переприсваем обработчики, заменяя их на себя же, только с отсрочкой
-            jqXHR[ii] = function(){
-
-                // сохраняем контекст и аргументы обработчика
-                var context = this
-                var args = arguments
-
-                d.promise()
-                	// если сбудется наше самописное событие
-                	// то выполним оригинальное
-                	// и вернем все на место что наворошили
-                    .done(function(){
-
-						console.log('Запросу выполняем обработчик-свойство '+ii)
-                        requestList[ii].apply(context, args)
-
-						console.log('Запросу возвращаем обработчик-свойство '+ii)
-                        // возвращаем исходные значения
-                        jqXHR[ii] = requestList[ii]
-
-
-                    })
-                    // если не сбудется наше самописное событие
-                	// то не выполнем оригинальное а только вернем все наместо
-                    .fail(function(){
-
-						console.log('Запросу возвращаем обработчик-свойство '+ii)
-                        // возвращаем исходные значения
-                        jqXHR[ii] = requestList[ii]
-
-                    })
-
-                return context
-
-            }
-
-        })(i)
-*/
-
 		//d.promise()
+        var sent_jqXHR = jqXHR
         
         // теперь когда мы этот аякс все таки получили
-        jqXHR.always(function(data, status, jqXHR2){
+        jqXHR.always(function(data, status, jqXHR){
 
             // иногда может направильно произойти парсинг
             // в этом ничего страшного нет, так как мы порой ожидаем один тип данных,
             // а протокол нам возвращает другой
             if(status == "parsererror"){
                 
-				jqXHR2 = data
-                data = jqXHR2.responseText
+                // запрос приходит первым аргументом
+				jqXHR = data
+                data = jqXHR.responseText
                 
                 // в этом случае выполняется обработчик ajaxSetup.error
                 // !!! нужно, чтобы не выполнялся
@@ -186,13 +125,12 @@
             }
 
             
-            var ok, requirecond
+            var requirecond
             
             // в глобальных настройках ajax может быть установлено имя заголовка передающего id шаблона
             if('ajaxTemplateIdHeader' in $.ajaxSettings) {
                 // получаем имя шаблона
-                
-                var templateId = jqXHR2.getResponseHeader($.ajaxSettings.ajaxTemplateIdHeader)
+                var templateId = jqXHR.getResponseHeader($.ajaxSettings.ajaxTemplateIdHeader)
                 if(templateId) requirecond = 'text!' + templateId
             }
 
@@ -203,64 +141,85 @@
                 if(('ajaxProtocolIdHeader' in $.ajaxSettings)){
 
                     // смотрим протокол в запросе
-                    var pid = jqXHR2.getResponseHeader($.ajaxSettings.ajaxProtocolIdHeader)
-
-                    //console.log(!pid ? 'Протокол в ответе не найден' : 'Найден Протокол в ответе ' + pid + '. Протокол ' + (pid in protocols ? '' : 'не ') + 'существует')            
-                    
-                    // если такой есть то хорошо
-					if(pid in protocols)  ok = true
+                    var pid = jqXHR.getResponseHeader($.ajaxSettings.ajaxProtocolIdHeader)
                     
                 }
-                
-                
-                // выполянем обработчик протокола
-                if(typeof protocols[pid].success == 'function'){
-                    
-                	var result = protocols[pid].success.call(ajaxOptions.context, data, status, jqXHR2, tpl)
-                    
-                    // здесь мы кстати можем анализировать ответ
-                    // и в зависимости от ответа уже работаем
-                    if(!result){} else ok = false
-                    
-                }                
 
-                // в параметрах запроса может быть прописана функция-условие для срабатывания протокола
-                // вне зависимости от заголовка
-                //if(typeof s.cond == 'function') ok = s.cond.call(this, data, status, jqXHR2, tpl)
-
-                // если мы не нашли такого протокола или он не указан
-                // выполняем наши внутрениие заранее подсунутые заголовки
-                // выполняем это значит что они отработают так как будно и не было никаких телодвижений
-                // завершаем эту свистопляску
-                if(ok !== true){
+                // если не сработало ни одного обработчика
+                // то есть по сути протокол не определен
+                // потому-что все протоколы чтолибо возвращают хоть false
+                if(!pid){
                     
-					//console.log('Протокол не определен')                         
-                    jqXHR2.ajaxProtocolPromice1.resolveWith(ajaxOptions.context).then(function(){ 
-                        
-                    	//d.resolve(data, status, jqXHR2, tpl); 
-                    	jqXHR2.ajaxProtocolPromice2.resolveWith(ajaxOptions.context, [data, status, jqXHR2, tpl, result]); 
+                    // если мы не нашли такого протокола или он не указан
+                    // выполняем наши внутрениие заранее подсунутые заголовки
+                    // выполняем это значит что они отработают так как будно и не было никаких телодвижений
+                    // завершаем эту свистопляску
+                    jqXHR.ajaxProtocolPromice1.resolveWith(ajaxOptions.context).then(function(){ 
+
+                    	jqXHR.protocolPrimise.resolveWith(ajaxOptions.context, [data, status, jqXHR, tpl]); 
                     
                     })
                     
                 } else {
+
+					var protocolStatus = []
+                    // смотрим статус протокола
+                    pid = pid.split(',')
+                    if(pid.length > 1) { protocolStatus = pid.slice(1); pid = pid[0]; }
                     
-                    jqXHR2.ajaxProtocolPromice2.reject()
-                    jqXHR2.ajaxProtocolPromice1.reject()
+                    // отбрасываем стандартные обраьотчики
+                    jqXHR.protocolPrimise.reject()
+                    jqXHR.ajaxProtocolPromice1.reject()
+                    
+                    
+                    // выполняем событие протокола
+					var currentResult //= [ajaxOptions.context, data, protocolStatus, jqXHR, tpl] //= result
+                    
+                    // проходимся по всем статусам
+                    $.each(protocolStatus, function(i, stat){
+
+                        if(currentResult === undefined) currentResult = [ajaxOptions.context, data, protocolStatus, jqXHR, tpl]
+                        currentResult = $(document).triggerHandler('protocol' + pid + stat, currentResult)
+
+                        // если протокол вернул Deferred
+                        if(typeof currentResult == 'object') if('resolveWith' in currentResult && 'then' in currentResult){
+
+                            // после выполнения обещания
+                            return currentResult.then(function(){
+
+                                // принимаем аргументы и передаем их в первичный обработчик
+                                $(jqXHR).triggerHandler('protocol' + pid + stat, arguments)
+
+                            });
+                            
+                        }
+                            
+                        
+                        $(jqXHR).triggerHandler('protocol' + pid + stat, currentResult)
+                        
+                    })
+
+                    if(protocolStatus.length == 0){
+						var result = $(document).triggerHandler('protocol' + pid, [ajaxOptions.context, data, protocolStatus, jqXHR, tpl])
+                    }
+                        
+
+                    var result = currentResult
+                    
+                    // если протокол вернул Deferred
+                    if(typeof currentResult == 'object') if('resolveWith' in result && 'then' in result)
+                        // после выполнения обещания
+                        return result.then(function(){
+
+                            // принимаем аргументы и передаем их в первичный обработчик
+                            $(jqXHR).triggerHandler('protocol' + pid, arguments)
+
+                        });
+                    
+                    $(jqXHR).triggerHandler('protocol' + pid, $.isArray(result) ? result : [result])
                     
                 }
                 
-
-				// ну а если мы определились с протоколом
-                // тогда нам нужно забыть про стандартные методы
-                //console.log('Стандартные методы не выполнятся')                         
-                //d.reject()
-                
-
-                
-
-                    
-
-
             })
             
         })

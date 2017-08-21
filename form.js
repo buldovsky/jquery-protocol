@@ -5,29 +5,21 @@
  */
 define(['./main'], function(){
 
-    $.ajaxProtocol('form', {
+    
+	$(document).on('protocolFormError', function(e, Form, data, status, jqXHR){ 
+        
+        // отображаем ошибки формы
+        Form.errors(data.errors)
 
-        success : function(data, status, jqXHR){ 
+        return [Form, data]
+        
+	})
+    .on('protocolFormSuccess', function(e, Form, data, status, jqXHR){ 
 
-            // в переменной this содержится контекст вызова AJAX запроса к объекту
-            var Form = this
+        // убираем все ошибки
+        Form.errors(false)
+        
+        return [Form, data]
 
-            switch(data.status){
-                case 'error' : 
-                    
-                    // отображаем ошибки формы
-                    Form.errors(data.errors)
-                    
-                break
-                case 'success' : 
-
-                	// эта строчка значит мы продолжаем 
-                	// выполняем стандартные обработчики запроса
-                	return data;
-                    
-                break
-            }
-
-        }
     })
 })

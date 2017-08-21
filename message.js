@@ -5,39 +5,30 @@
  */
 define(['./main'], function(){
 
-    $.ajaxProtocol('message', { 
 
-        success : function(data, status, jqXHR){
-            
-            // в переменной this содержится контекст вызова AJAX запроса к объекту
-            var context = this
+    // если в ответе не строка, нам пригодится эта функция
+    /*
+    var arr_to_str = function(data){
 
-            // если в ответе не строка, нам пригодится эта функция
-            var arr_to_str = function(data){
+        return data.toString()
 
-                return data.toString()
+    }
+    */
+        
+	$(document).on('protocolMessageError', function(e, context, data, status, jqXHR){
 
-            }
+        return [data.error]
 
-            switch(data.status){
-                case 'error' : 
-                    
-                    alert('Ошибка: ' + arr_to_str(data.error))
-                    
-                break
-                case 'success' : 
-                
-                    alert('Успех: ' + arr_to_str(data.message)) 
-                    
-                break
-                case 'notice' :
-                
-                    alert(arr_to_str(data.notice))
-                    
-                break
-            }
-            
-        }            
+        
+	}).on('protocolMessageSuccess', function(e, context, data, status, jqXHR){
+
+        return [data.message]
+
+        
+	}).on('protocolMessageNotice', function(e, context, data, status, jqXHR){
+
+        return [data.notice]
+        
     })
       
 });

@@ -5,52 +5,50 @@
  */
 define(['./main'], function(Form){
 
-    $.ajaxProtocol('auth', {
+	$(document).on('protocolAuth', function(e, context, response, status, jqXHR){    
+        
 
-        success : function(response, status, jqXHR){
+        if(typeof response == 'string'){
 
-            if(typeof response == 'string'){
+            if($('.mod_auth_modal').length > 0) return
 
-                if($('.mod_auth_modal').length > 0) return
-                
-                // в даныных приходит страница авторизации
-                var div = $('<div>').appendTo('body').append($(response))
-                // находим в ответе модальное окно и вставляем его на страницу
-                var modal = div.find('.modal').appendTo('body').data('embeded', true) //.modal('show')
-                
-                var moduleid = 'auth' //div.find('body').attr('data-require')
-                
-                div.remove()
+            // в даныных приходит страница авторизации
+            var div = $('<div>').appendTo('body').append($(response))
+            // находим в ответе модальное окно и вставляем его на страницу
+            var modal = div.find('.modal').appendTo('body').data('embeded', true) //.modal('show')
 
-                // выполняем скрипт авторизации
-                require([ moduleid ], function(handler){ handler() })
+            var moduleid = 'auth' //div.find('body').attr('data-require')
 
-            }
+            div.remove()
 
-            // мы прошли авторизацию
-            if(typeof response == 'object'){
+            // выполняем скрипт авторизации
+            require([ moduleid ], function(handler){ handler() })
 
-                var info = response.info
-                var modal = $('.mod_auth_modal')
+        }
 
-                // если модалка была вставлена скриптом
-                if(modal.data('embeded')){
+        // мы прошли авторизацию
+        if(typeof response == 'object'){
 
-                    // убираем ее
-                    modal.off('hide.bs.modal').on('hidden.bs.modal', function(){ $(this).remove() }).modal('hide')
+            var info = response.info
+            var modal = $('.mod_auth_modal')
 
-                    // можно попробовать отработать тот аякс который мы прервали когда перехватили авторизацию
+            // если модалка была вставлена скриптом
+            if(modal.data('embeded')){
 
-                } else {
+                // убираем ее
+                modal.off('hide.bs.modal').on('hidden.bs.modal', function(){ $(this).remove() }).modal('hide')
 
-                    // иначе обновляем страницу
-                    window.location.reload()
+                // можно попробовать отработать тот аякс который мы прервали когда перехватили авторизацию
 
-                }
+            } else {
+
+                // иначе обновляем страницу
+                window.location.reload()
 
             }
 
         }
+
 
     })
 });
