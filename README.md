@@ -1,2 +1,1 @@
-# jquery-protocol-plugin
-jQuery AJAX protocol plugin
+# jQuery protocol plugin
