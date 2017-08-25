@@ -1,6 +1,6 @@
 {
   "name": "jquery-protocol",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "jQuery protocol plugin",
   "main": "main.js",
   "scripts": {
@@ -14,6 +14,9 @@
     "jQuery",
     "javascript"
   ],
+  "dependencies": {
+    "requirejs-text": "^2.0.0"
+  },  
   "author": "Max Buldovsky",
   "license": "MIT",
   "bugs": {
